@@ -13,6 +13,11 @@ export interface Database {
           webhook_url: string;
           currency_symbol: string;
           created_at: string;
+          // الخانات الجديدة اللي ضفناها
+          shipping_fee: number;
+          free_shipping_threshold: number;
+          whatsapp_number: string;
+          brand_color: string;
         };
         Insert: {
           id: string;
@@ -23,6 +28,10 @@ export interface Database {
           webhook_url?: string;
           currency_symbol?: string;
           created_at?: string;
+          shipping_fee?: number;
+          free_shipping_threshold?: number;
+          whatsapp_number?: string;
+          brand_color?: string;
         };
         Update: {
           id?: string;
@@ -33,6 +42,10 @@ export interface Database {
           webhook_url?: string;
           currency_symbol?: string;
           created_at?: string;
+          shipping_fee?: number;
+          free_shipping_threshold?: number;
+          whatsapp_number?: string;
+          brand_color?: string;
         };
       };
       products: {
