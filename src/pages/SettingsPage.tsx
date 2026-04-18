@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, Loader2, CheckCircle, Upload, Zap, Key, Globe, Percent, Store } from 'lucide-react';
+import { Settings, Save, Loader2, CheckCircle, Upload, Zap, Key, Globe, Percent, Store, DollarSign } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { SubscriberProfile } from '../lib/types';
 import Header from '../components/dashboard/Header';
@@ -14,6 +14,7 @@ interface SettingsPageProps {
 export default function SettingsPage({ profile, userId, userEmail, onProfileUpdate }: SettingsPageProps) {
   const [storeName, setStoreName] = useState('');
   const [storeLogoUrl, setStoreLogoUrl] = useState('');
+  const [currencySymbol, setCurrencySymbol] = useState('$');
   const [profitMargin, setProfitMargin] = useState('0');
   const [platformApiKey, setPlatformApiKey] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
@@ -25,6 +26,7 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
     if (profile) {
       setStoreName(profile.store_name);
       setStoreLogoUrl(profile.store_logo_url);
+      setCurrencySymbol(profile.currency_symbol);
       setProfitMargin(profile.profit_margin.toString());
       setPlatformApiKey(profile.platform_api_key);
       setWebhookUrl(profile.webhook_url);
@@ -41,6 +43,7 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
         id: userId,
         store_name: storeName,
         store_logo_url: storeLogoUrl,
+        currency_symbol: currencySymbol,
         profit_margin: parseFloat(profitMargin) || 0,
         platform_api_key: platformApiKey,
         webhook_url: webhookUrl,
@@ -122,6 +125,41 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
                   )}
                 </div>
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5"><DollarSign className="w-3 h-3" /> Currency Symbol</span>
+                </label>
+                <div className="flex gap-3">
+                  <select
+                    value={currencySymbol}
+                    onChange={(e) => setCurrencySymbol(e.target.value)}
+                    className="flex-1 bg-[#0a0f1e] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all text-sm appearance-none"
+                  >
+                    <option value="$">$ (US Dollar)</option>
+                    <option value="€">€ (Euro)</option>
+                    <option value="£">£ (British Pound)</option>
+                    <option value="¥">¥ (Japanese Yen)</option>
+                    <option value="₹">₹ (Indian Rupee)</option>
+                    <option value="₽">₽ (Russian Ruble)</option>
+                    <option value="₩">₩ (South Korean Won)</option>
+                    <option value="¢">¢ (Cent)</option>
+                    <option value="CHF">CHF (Swiss Franc)</option>
+                    <option value="AUD">AUD (Australian Dollar)</option>
+                    <option value="CAD">CAD (Canadian Dollar)</option>
+                    <option value="SGD">SGD (Singapore Dollar)</option>
+                    <option value="HKD">HKD (Hong Kong Dollar)</option>
+                    <option value="NZD">NZD (New Zealand Dollar)</option>
+                    <option value="SEK">SEK (Swedish Krona)</option>
+                    <option value="NOK">NOK (Norwegian Krone)</option>
+                    <option value="DKK">DKK (Danish Krone)</option>
+                    <option value="PLN">PLN (Polish Zloty)</option>
+                  </select>
+                  <div className="w-12 h-12 bg-[#0a0f1e] border border-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg font-semibold text-white">{currencySymbol}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -159,15 +197,15 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
                     <p className="text-xs text-slate-600 mb-1">Original Price</p>
-                    <p className="text-lg font-bold text-slate-400">${exampleOriginal.toFixed(2)}</p>
+                    <p className="text-lg font-bold text-slate-400">{currencySymbol}{exampleOriginal.toFixed(2)}</p>
                   </div>
                   <div className="text-slate-600">→</div>
                   <div className="flex-1">
                     <p className="text-xs text-slate-600 mb-1">After Margin ({marginPreview}%)</p>
-                    <p className="text-lg font-bold text-emerald-400">${exampleAdjusted.toFixed(2)}</p>
+                    <p className="text-lg font-bold text-emerald-400">{currencySymbol}{exampleAdjusted.toFixed(2)}</p>
                   </div>
                   <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1.5">
-                    <p className="text-xs text-emerald-400 font-semibold">+${(exampleAdjusted - exampleOriginal).toFixed(2)} profit</p>
+                    <p className="text-xs text-emerald-400 font-semibold">+{currencySymbol}{(exampleAdjusted - exampleOriginal).toFixed(2)} profit</p>
                   </div>
                 </div>
               </div>

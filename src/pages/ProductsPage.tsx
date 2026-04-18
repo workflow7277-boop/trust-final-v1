@@ -158,6 +158,7 @@ export default function ProductsPage({ profile, userId, userEmail }: ProductsPag
                   key={product.id}
                   product={product}
                   profitMargin={profitMargin}
+                  currencySymbol={profile?.currency_symbol ?? '$'}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onToggleActive={handleToggleActive}

@@ -19,6 +19,7 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  const currencySymbol = profile.currency_symbol;
   const totalPrice = adjustedPrice * quantity;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,7 +102,7 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
           <div className="bg-gray-50 rounded-xl p-4 mb-6">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">{quantity}x {product.name}</span>
-              <span className="font-bold text-emerald-600">${totalPrice.toFixed(2)}</span>
+              <span className="font-bold text-emerald-600">{currencySymbol}{totalPrice.toFixed(2)}</span>
             </div>
           </div>
           <button
@@ -195,8 +196,8 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
 
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">{quantity} × ${adjustedPrice.toFixed(2)}</span>
-              <span className="text-xl font-bold text-gray-900">${totalPrice.toFixed(2)}</span>
+              <span className="text-sm text-gray-500">{quantity} × {currencySymbol}{adjustedPrice.toFixed(2)}</span>
+              <span className="text-xl font-bold text-gray-900">{currencySymbol}{totalPrice.toFixed(2)}</span>
             </div>
           </div>
 
@@ -210,7 +211,7 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
             className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-all text-sm"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
-            {submitting ? 'Placing Order...' : `Place Order · $${totalPrice.toFixed(2)}`}
+            {submitting ? 'Placing Order...' : `Place Order · ${currencySymbol}${totalPrice.toFixed(2)}`}
           </button>
         </form>
       </div>

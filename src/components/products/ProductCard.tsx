@@ -4,12 +4,13 @@ import type { Product } from '../../lib/types';
 interface ProductCardProps {
   product: Product;
   profitMargin: number;
+  currencySymbol: string;
   onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
   onToggleActive: (id: string, active: boolean) => void;
 }
 
-export default function ProductCard({ product, profitMargin, onEdit, onDelete, onToggleActive }: ProductCardProps) {
+export default function ProductCard({ product, profitMargin, currencySymbol, onEdit, onDelete, onToggleActive }: ProductCardProps) {
   const adjustedPrice = product.original_price * (1 + profitMargin / 100);
   const profit = adjustedPrice - product.original_price;
 
@@ -55,12 +56,12 @@ export default function ProductCard({ product, profitMargin, onEdit, onDelete, o
 
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs text-slate-600 line-through">${product.original_price.toFixed(2)}</p>
-            <p className="text-lg font-bold text-emerald-400">${adjustedPrice.toFixed(2)}</p>
+            <p className="text-xs text-slate-600 line-through">{currencySymbol}{product.original_price.toFixed(2)}</p>
+            <p className="text-lg font-bold text-emerald-400">{currencySymbol}{adjustedPrice.toFixed(2)}</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-600">Profit</p>
-            <p className="text-sm font-semibold text-blue-400">+${profit.toFixed(2)}</p>
+            <p className="text-sm font-semibold text-blue-400">+{currencySymbol}{profit.toFixed(2)}</p>
           </div>
         </div>
 

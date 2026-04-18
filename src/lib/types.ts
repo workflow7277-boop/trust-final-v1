@@ -11,6 +11,7 @@ export interface Database {
           profit_margin: number;
           platform_api_key: string;
           webhook_url: string;
+          currency_symbol: string;
           created_at: string;
         };
         Insert: {
@@ -20,6 +21,7 @@ export interface Database {
           profit_margin?: number;
           platform_api_key?: string;
           webhook_url?: string;
+          currency_symbol?: string;
           created_at?: string;
         };
         Update: {
@@ -29,6 +31,7 @@ export interface Database {
           profit_margin?: number;
           platform_api_key?: string;
           webhook_url?: string;
+          currency_symbol?: string;
           created_at?: string;
         };
       };

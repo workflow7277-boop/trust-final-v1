@@ -30,6 +30,7 @@ export default function StorefrontPage({ subscriberId }: StorefrontPageProps) {
   }, [subscriberId]);
 
   const profitMargin = profile?.profit_margin ?? 0;
+  const currencySymbol = profile?.currency_symbol ?? '$';
 
   const categories = ['All', ...Array.from(new Set(products.map((p) => p.category)))];
 
@@ -215,7 +216,7 @@ export default function StorefrontPage({ subscriberId }: StorefrontPageProps) {
                     )}
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <p className="text-xl font-extrabold text-gray-900">${adjustedPrice.toFixed(2)}</p>
+                        <p className="text-xl font-extrabold text-gray-900">{currencySymbol}{adjustedPrice.toFixed(2)}</p>
                       </div>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
