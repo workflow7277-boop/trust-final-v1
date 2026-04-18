@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ShoppingBag, Loader2, CheckCircle, User, Phone, MapPin } from 'lucide-react';
+import { X, ShoppingBag, Loader2, CheckCircle, User, Phone, MapPin, Navigation } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Product, SubscriberProfile } from '../../lib/types';
 
@@ -17,10 +17,40 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
   const [quantity, setQuantity] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
 
-  const currencySymbol = profile.currency_symbol;
+  const currencySymbol = profile.currency_symbol || 'EGP';
   const totalPrice = adjustedPrice * quantity;
+
+  // دالة تحديد الموقع عبر GPS
+  const handleGetLocation = () => {
+    setLocating(true);
+    if (!navigator.geolocation) {
+      setError('المتصفح لا يدعم تحديد الموقع');
+      setLocating(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=ar`);
+          const data = await res.json();
+          setAddress(data.display_name || `Lat: ${latitude}, Lon: ${longitude}`);
+        } catch (err) {
+          setAddress(`موقع محدد: ${latitude}, ${longitude}`);
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setError('تعذر الوصول لموقعك، يرجى تفعيل الـ GPS');
+        setLocating(false);
+      }
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +111,7 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
 
       setSuccess(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to place order');
+      setError(err instanceof Error ? err.message : 'فشل إرسال الطلب');
       setSubmitting(false);
     }
   };
@@ -94,22 +124,22 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-emerald-500" />
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Order Placed!</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">تم استلام طلبك!</h3>
           <p className="text-gray-500 text-sm mb-2">
-            Thank you, <strong>{name}</strong>! Your order for <strong>{product.name}</strong> has been received.
+            شكراً لك يا <strong>{name}</strong>! تم تسجيل طلبك لمنتج <strong>{product.name}</strong> بنجاح.
           </p>
-          <p className="text-gray-400 text-xs mb-6">We'll contact you at {phone} to confirm delivery details.</p>
-          <div className="bg-gray-50 rounded-xl p-4 mb-6">
+          <p className="text-gray-400 text-xs mb-6">سنتواصل معك على رقم {phone} لتأكيد موعد التوصيل.</p>
+          <div className="bg-gray-50 rounded-xl p-4 mb-6 text-right">
             <div className="flex justify-between text-sm">
+              <span className="font-bold text-emerald-600">{totalPrice.toFixed(2)} {currencySymbol}</span>
               <span className="text-gray-500">{quantity}x {product.name}</span>
-              <span className="font-bold text-emerald-600">{currencySymbol}{totalPrice.toFixed(2)}</span>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-full bg-gray-900 text-white font-semibold py-3 rounded-xl hover:bg-gray-800 transition-all"
+            className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition-all shadow-lg"
           >
-            Continue Shopping
+            متابعة التسوق
           </button>
         </div>
       </div>
@@ -119,13 +149,12 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
+            <div className="w-10 h-10 bg-white border border-gray-200 rounded-xl overflow-hidden flex-shrink-0">
               {product.image_url ? (
-                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <ShoppingBag className="w-5 h-5 text-gray-400" />
@@ -133,12 +162,12 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
               )}
             </div>
             <div>
-              <p className="text-xs text-gray-400 font-medium">Quick Buy</p>
+              <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">شراء سريع</p>
               <h3 className="text-sm font-bold text-gray-900 truncate max-w-52">{product.name}</h3>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors bg-white p-1.5 rounded-full border border-gray-100">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -150,8 +179,8 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              placeholder="Full Name"
-              className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+              placeholder="الاسم بالكامل"
+              className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             />
           </div>
 
@@ -162,8 +191,8 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
-              placeholder="Phone Number"
-              className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+              placeholder="رقم الهاتف"
+              className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             />
           </div>
 
@@ -174,44 +203,56 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
               onChange={(e) => setAddress(e.target.value)}
               required
               rows={3}
-              placeholder="Delivery Address"
-              className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all resize-none"
+              placeholder="عنوان التوصيل بالتفصيل"
+              className="w-full border border-gray-200 rounded-xl pl-10 pr-12 py-3 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
             />
+            <button
+              type="button"
+              onClick={handleGetLocation}
+              disabled={locating}
+              className="absolute right-3 top-3 p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              title="تحديد موقعي التلقائي"
+            >
+              {locating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+            </button>
           </div>
 
-          <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-            <span className="text-sm text-gray-600 font-medium">Quantity</span>
+          <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+            <span className="text-sm text-gray-600 font-medium">الكمية</span>
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-all font-bold">
+                className="w-8 h-8 bg-white border border-gray-200 rounded-lg text-gray-600 hover:border-gray-400 transition-all font-bold shadow-sm">
                 -
               </button>
               <span className="text-sm font-bold text-gray-900 w-6 text-center">{quantity}</span>
               <button type="button" onClick={() => setQuantity(quantity + 1)}
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-all font-bold">
+                className="w-8 h-8 bg-white border border-gray-200 rounded-lg text-gray-600 hover:border-gray-400 transition-all font-bold shadow-sm">
                 +
               </button>
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-xl p-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">{quantity} × {currencySymbol}{adjustedPrice.toFixed(2)}</span>
-              <span className="text-xl font-bold text-gray-900">{currencySymbol}{totalPrice.toFixed(2)}</span>
+          <div className="bg-blue-600 rounded-xl p-4 shadow-lg shadow-blue-600/20">
+            <div className="flex justify-between items-center text-white">
+              <span className="text-xs opacity-80">{quantity} × {adjustedPrice.toFixed(2)} {currencySymbol}</span>
+              <div className="text-right">
+                <p className="text-[10px] opacity-70 uppercase font-bold tracking-tighter">الإجمالي</p>
+                <p className="text-xl font-black">{totalPrice.toFixed(2)} {currencySymbol}</p>
+              </div>
             </div>
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">{error}</div>
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-[10px]">{error}</div>
           )}
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-all text-sm"
+            className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-black disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-all text-sm shadow-xl"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
-            {submitting ? 'Placing Order...' : `Place Order · ${currencySymbol}${totalPrice.toFixed(2)}`}
+            {submitting ? 'جاري تأكيد الطلب...' : 'تأكيد الشراء الآن'}
           </button>
         </form>
       </div>
