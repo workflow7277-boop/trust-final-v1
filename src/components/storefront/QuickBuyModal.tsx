@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, ShoppingBag, Loader2, CheckCircle, User, Phone, MapPin, Navigation } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { Product, SubscriberProfile } from '../../lib/types';
+import type { Database, Product, SubscriberProfile } from '../../lib/types';
 
 interface QuickBuyModalProps {
   product: Product;
@@ -58,7 +58,7 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
     setError('');
 
     try {
-      const orderPayload = {
+      const orderPayload: Database['public']['Tables']['orders']['Insert'] = {
         subscriber_id: profile.id,
         product_id: product.id,
         product_name: product.name,
@@ -72,11 +72,11 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
         webhook_sent: false,
       };
 
-      const { data: order, error: dbError } = await supabase
-        .from('orders')
+      const { data: order, error: dbError } = await ((supabase
+        .from('orders') as any)
         .insert(orderPayload)
         .select()
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (dbError) throw dbError;
 
@@ -102,7 +102,7 @@ export default function QuickBuyModal({ product, profile, adjustedPrice, onClose
           });
 
           if (order && webhookRes.ok) {
-            await supabase.from('orders').update({ webhook_sent: true, status: 'processing' }).eq('id', order.id);
+            await ((supabase.from('orders') as any).update({ webhook_sent: true, status: 'processing' }).eq('id', order.id));
           }
         } catch {
           // Webhook failed, but order was saved

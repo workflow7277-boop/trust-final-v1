@@ -4,6 +4,7 @@ import type { Order } from '../../lib/types';
 interface RecentActivityProps {
   orders: Order[];
   loading: boolean;
+  currencySymbol: string;
 }
 
 const StatusBadge = ({ status }: { status: Order['status'] }) => {
@@ -24,7 +25,7 @@ const StatusBadge = ({ status }: { status: Order['status'] }) => {
   );
 };
 
-export default function RecentActivity({ orders, loading }: RecentActivityProps) {
+export default function RecentActivity({ orders, loading, currencySymbol }: RecentActivityProps) {
   const recentOrders = orders.slice(0, 10);
 
   return (
@@ -81,7 +82,7 @@ export default function RecentActivity({ orders, loading }: RecentActivityProps)
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm font-semibold text-emerald-400">
-                      ${order.total_price.toFixed(2)}
+                      {currencySymbol}{order.total_price.toFixed(2)}
                     </span>
                   </td>
                   <td className="px-6 py-4">

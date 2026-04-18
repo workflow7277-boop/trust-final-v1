@@ -1,19 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
-import type { AppPage, SubscriberProfile } from './lib/types';
+import type { AppPage, SubscriptionSummary, TenantContext } from './lib/types';
 import AuthPage from './components/auth/AuthPage';
 import Sidebar from './components/dashboard/Sidebar';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import ProductsPage from './pages/ProductsPage';
 import StorefrontPage from './pages/StorefrontPage';
+import BillingPage from './pages/BillingPage';
+import AdminSubscriptionsPage from './pages/AdminSubscriptionsPage';
+import { loadTenantContext, syncSubscriptionStatuses } from './lib/subscriptions';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<SubscriberProfile | null>(null);
+  const [tenantContext, setTenantContext] = useState<TenantContext | null>(null);
   const [currentPage, setCurrentPage] = useState<AppPage>('dashboard');
   const [authChecked, setAuthChecked] = useState(false);
+  const [contextLoading, setContextLoading] = useState(false);
+
+  const refreshTenantContext = useCallback(async () => {
+    if (!user) {
+      setTenantContext(null);
+      return;
+    }
+
+    setContextLoading(true);
+
+    try {
+      await syncSubscriptionStatuses();
+      const context = await loadTenantContext();
+      setTenantContext(context);
+    } finally {
+      setContextLoading(false);
+    }
+  }, [user]);
+
+  const handleSummaryChange = useCallback((summary: SubscriptionSummary | null) => {
+    setTenantContext((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        subscription_summary: summary,
+      };
+    });
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -29,19 +63,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) { setProfile(null); return; }
-
-    const loadProfile = async () => {
-      const { data } = await supabase
-        .from('subscriber_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-      setProfile(data);
-    };
-
-    loadProfile();
-  }, [user]);
+    void refreshTenantContext();
+  }, [refreshTenantContext]);
 
   if (!authChecked) {
     return (
@@ -58,6 +81,11 @@ export default function App() {
     return <AuthPage onAuthSuccess={() => setCurrentPage('dashboard')} />;
   }
 
+  const profile = tenantContext?.profile ?? null;
+  const tenantId = tenantContext?.tenant_id ?? null;
+  const subscriptionSummary = tenantContext?.subscription_summary ?? null;
+  const isPlatformAdmin = tenantContext?.is_platform_admin ?? false;
+
   if (currentPage === 'storefront') {
     return (
       <div className="relative">
@@ -67,7 +95,7 @@ export default function App() {
         >
           Back to Dashboard
         </button>
-        <StorefrontPage subscriberId={user.id} />
+        {tenantId ? <StorefrontPage subscriberId={tenantId} /> : null}
       </div>
     );
   }
@@ -78,28 +106,52 @@ export default function App() {
         return (
           <DashboardPage
             profile={profile}
-            userId={user.id}
+            tenantId={tenantId}
             userEmail={user.email ?? ''}
             onNavigate={setCurrentPage}
+            subscriptionSummary={subscriptionSummary}
+            loading={contextLoading}
           />
         );
       case 'settings':
         return (
           <SettingsPage
             profile={profile}
-            userId={user.id}
+            tenantId={tenantId}
             userEmail={user.email ?? ''}
-            onProfileUpdate={setProfile}
+            onProfileUpdate={(nextProfile) =>
+              setTenantContext((previous) =>
+                previous
+                  ? {
+                      ...previous,
+                      profile: nextProfile,
+                    }
+                  : previous
+              )
+            }
+            subscriptionSummary={subscriptionSummary}
           />
         );
       case 'products':
         return (
           <ProductsPage
             profile={profile}
-            userId={user.id}
+            tenantId={tenantId}
             userEmail={user.email ?? ''}
+            subscriptionSummary={subscriptionSummary}
           />
         );
+      case 'billing':
+        return (
+          <BillingPage
+            tenantId={tenantId}
+            userEmail={user.email ?? ''}
+            summary={subscriptionSummary}
+            onSummaryChange={handleSummaryChange}
+          />
+        );
+      case 'admin':
+        return <AdminSubscriptionsPage userEmail={user.email ?? ''} enabled={isPlatformAdmin} />;
       default:
         return null;
     }
@@ -111,6 +163,7 @@ export default function App() {
         currentPage={currentPage}
         onNavigate={setCurrentPage}
         storeName={profile?.store_name ?? 'My Store'}
+        isPlatformAdmin={isPlatformAdmin}
       />
       <main className="flex-1 flex flex-col min-w-0 overflow-auto">
         {renderPage()}

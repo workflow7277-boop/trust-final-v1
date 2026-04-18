@@ -1,17 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, Loader2, CheckCircle, Upload, Zap, Key, Globe, Percent, Store, DollarSign, Truck, MessageCircle, Palette } from 'lucide-react';
+import { Save, Loader2, CheckCircle, Zap, Percent, Truck, MessageCircle, Palette } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { SubscriberProfile } from '../lib/types';
+import type { Database, SubscriberProfile, SubscriptionSummary } from '../lib/types';
 import Header from '../components/dashboard/Header';
+import { SubscriptionGuardError, hasFeatureAccess } from '../lib/subscriptionGuards';
 
 interface SettingsPageProps {
   profile: SubscriberProfile | null;
-  userId: string;
+  tenantId: string | null;
   userEmail: string;
   onProfileUpdate: (profile: SubscriberProfile) => void;
+  subscriptionSummary: SubscriptionSummary | null;
 }
 
-export default function SettingsPage({ profile, userId, userEmail, onProfileUpdate }: SettingsPageProps) {
+export default function SettingsPage({
+  profile,
+  tenantId,
+  userEmail,
+  onProfileUpdate,
+  subscriptionSummary,
+}: SettingsPageProps) {
   // الحقول القديمة
   const [storeName, setStoreName] = useState('');
   const [storeLogoUrl, setStoreLogoUrl] = useState('');
@@ -29,6 +37,8 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const hasWebhookAccess = hasFeatureAccess(subscriptionSummary, 'webhook_integration');
+  const hasBrandingAccess = hasFeatureAccess(subscriptionSummary, 'advanced_branding');
 
   useEffect(() => {
     if (profile) {
@@ -52,8 +62,20 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
     setError('');
 
     try {
-      const updates = {
-        id: userId,
+      if (!tenantId) {
+        throw new Error('No tenant is available for this action.');
+      }
+
+      if ((webhookUrl || platformApiKey) && !hasWebhookAccess) {
+        throw new SubscriptionGuardError('Webhook and API key settings require one of the paid plans.');
+      }
+
+      if ((storeLogoUrl || brandColor !== '#2563eb') && !hasBrandingAccess) {
+        throw new SubscriptionGuardError('Custom branding requires one of the paid plans.');
+      }
+
+      const updates: Database['public']['Tables']['subscriber_profiles']['Insert'] = {
+        id: tenantId,
         store_name: storeName,
         store_logo_url: storeLogoUrl,
         currency_symbol: currencySymbol,
@@ -67,8 +89,8 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
         brand_color: brandColor,
       };
 
-      const { data, error: upsertError } = await supabase
-        .from('subscriber_profiles')
+      const profileTable = supabase.from('subscriber_profiles') as any;
+      const { data, error: upsertError } = await profileTable
         .upsert(updates)
         .select()
         .maybeSingle();
@@ -79,7 +101,7 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'فشل حفظ الإعدادات');
+      setError(err instanceof Error ? err.message : 'Failed to save store settings');
     } finally {
       setSaving(false);
     }
@@ -94,6 +116,13 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
       <Header title="إعدادات المتجر" subtitle="تحكم كامل في هوية وعمليات متجرك" userEmail={userEmail} />
 
       <div className="flex-1 p-6">
+        {(!hasWebhookAccess || !hasBrandingAccess) && (
+          <div className="mb-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-sm text-amber-200">
+            {!hasWebhookAccess ? 'Webhook and API credentials unlock on paid tiers. ' : ''}
+            {!hasBrandingAccess ? 'Custom branding unlocks on paid tiers.' : ''}
+          </div>
+        )}
+
         <form onSubmit={handleSave} className="max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
           
           {/* هوية المتجر والبراند */}
@@ -113,8 +142,8 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
             <div>
               <label className="block text-[10px] font-medium text-slate-400 mb-2 uppercase tracking-wider">لون المتجر الأساسي</label>
               <div className="flex gap-2">
-                <input type="color" value={brandColor} onChange={(e) => setBrandColor(e.target.value)} className="h-11 w-16 bg-[#0a0f1e] border border-white/10 rounded-xl p-1 cursor-pointer" />
-                <input type="text" value={brandColor} readOnly className="flex-1 bg-[#0a0f1e] border border-white/10 rounded-xl px-4 py-3 text-white text-xs font-mono" />
+              <input type="color" value={brandColor} onChange={(e) => setBrandColor(e.target.value)} disabled={!hasBrandingAccess} className="h-11 w-16 bg-[#0a0f1e] border border-white/10 rounded-xl p-1 cursor-pointer disabled:opacity-50" />
+              <input type="text" value={brandColor} readOnly className="flex-1 bg-[#0a0f1e] border border-white/10 rounded-xl px-4 py-3 text-white text-xs font-mono" />
               </div>
             </div>
           </div>
@@ -190,7 +219,7 @@ export default function SettingsPage({ profile, userId, userEmail, onProfileUpda
               <label className="block text-[10px] font-medium text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
                 <Zap className="w-3 h-3 text-amber-400" /> n8n Webhook URL
               </label>
-              <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://..." className="w-full bg-[#0a0f1e] border border-white/10 rounded-xl px-4 py-3 text-white text-[10px] font-mono outline-none" />
+              <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://..." disabled={!hasWebhookAccess} className="w-full bg-[#0a0f1e] border border-white/10 rounded-xl px-4 py-3 text-white text-[10px] font-mono outline-none disabled:opacity-50" />
             </div>
           </div>
 

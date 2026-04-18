@@ -3,9 +3,10 @@ import type { Order } from '../../lib/types';
 
 interface MetricsCardsProps {
   orders: Order[];
+  currencySymbol: string;
 }
 
-export default function MetricsCards({ orders }: MetricsCardsProps) {
+export default function MetricsCards({ orders, currencySymbol }: MetricsCardsProps) {
   const totalOrders = orders.length;
   const successOrders = orders.filter((o) => o.status === 'success').length;
   const successRate = totalOrders > 0 ? Math.round((successOrders / totalOrders) * 100) : 0;
@@ -45,7 +46,7 @@ export default function MetricsCards({ orders }: MetricsCardsProps) {
       color: 'amber',
       change: totalRevenue > 0 ? 'Active' : 'Awaiting orders',
       suffix: '',
-      prefix: '$',
+      prefix: currencySymbol,
     },
   ];
 

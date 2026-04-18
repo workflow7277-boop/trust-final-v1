@@ -1,4 +1,4 @@
-import { LayoutDashboard, Settings, Package, Globe, LogOut, ShieldCheck, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Settings, Package, Globe, LogOut, ShieldCheck, ChevronRight, CreditCard, Shield } from 'lucide-react';
 import type { AppPage } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 
@@ -6,16 +6,18 @@ interface SidebarProps {
   currentPage: AppPage;
   onNavigate: (page: AppPage) => void;
   storeName: string;
+  isPlatformAdmin: boolean;
 }
 
 const navItems = [
   { id: 'dashboard' as AppPage, label: 'Dashboard', icon: LayoutDashboard },
   { id: 'products' as AppPage, label: 'Products', icon: Package },
   { id: 'settings' as AppPage, label: 'Store Settings', icon: Settings },
+  { id: 'billing' as AppPage, label: 'Billing', icon: CreditCard },
   { id: 'storefront' as AppPage, label: 'Storefront Preview', icon: Globe },
 ];
 
-export default function Sidebar({ currentPage, onNavigate, storeName }: SidebarProps) {
+export default function Sidebar({ currentPage, onNavigate, storeName, isPlatformAdmin }: SidebarProps) {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
@@ -50,6 +52,21 @@ export default function Sidebar({ currentPage, onNavigate, storeName }: SidebarP
             {currentPage === id && <ChevronRight className="w-3.5 h-3.5 opacity-50" />}
           </button>
         ))}
+
+        {isPlatformAdmin && (
+          <button
+            onClick={() => onNavigate('admin')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+              currentPage === 'admin'
+                ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Shield className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1 text-left">Admin Subscriptions</span>
+            {currentPage === 'admin' && <ChevronRight className="w-3.5 h-3.5 opacity-50" />}
+          </button>
+        )}
       </nav>
 
       <div className="p-4 border-t border-white/5">

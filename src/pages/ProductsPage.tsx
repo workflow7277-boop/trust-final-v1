@@ -1,46 +1,69 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Package, Loader2, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { Product, SubscriberProfile } from '../lib/types';
+import type { Database, Product, SubscriberProfile, SubscriptionSummary } from '../lib/types';
 import Header from '../components/dashboard/Header';
 import ProductCard from '../components/products/ProductCard';
 import ProductModal from '../components/products/ProductModal';
+import { SubscriptionGuardError, assertProductCreationAllowed } from '../lib/subscriptionGuards';
 
 interface ProductsPageProps {
   profile: SubscriberProfile | null;
-  userId: string;
+  tenantId: string | null;
   userEmail: string;
+  subscriptionSummary: SubscriptionSummary | null;
 }
 
-export default function ProductsPage({ profile, userId, userEmail }: ProductsPageProps) {
+export default function ProductsPage({ profile, tenantId, userEmail, subscriptionSummary }: ProductsPageProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'hidden'>('all');
+  const [error, setError] = useState('');
 
   const profitMargin = profile?.profit_margin ?? 0;
 
   const loadProducts = useCallback(async () => {
+    if (!tenantId) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const { data } = await supabase
       .from('products')
       .select('*')
-      .eq('subscriber_id', userId)
+      .eq('subscriber_id', tenantId)
       .order('created_at', { ascending: false });
     setProducts(data ?? []);
     setLoading(false);
-  }, [userId]);
+  }, [tenantId]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
   const handleSave = async (data: Partial<Product>) => {
+    if (!tenantId) {
+      throw new Error('No tenant is available for this action.');
+    }
+
+    setError('');
+
     if (editingProduct) {
-      const { error } = await supabase.from('products').update(data).eq('id', editingProduct.id);
+      const { error } = await ((supabase.from('products') as any).update(data).eq('id', editingProduct.id));
       if (error) throw error;
     } else {
-      const { error } = await supabase.from('products').insert({ ...data, subscriber_id: userId } as Product);
+      assertProductCreationAllowed(subscriptionSummary);
+
+      const payload: Database['public']['Tables']['products']['Insert'] = {
+        ...(data as Database['public']['Tables']['products']['Update']),
+        subscriber_id: tenantId,
+        name: data.name ?? '',
+        original_price: data.original_price ?? 0,
+      };
+      const { error } = await ((supabase.from('products') as any).insert(payload));
       if (error) throw error;
     }
     await loadProducts();
@@ -54,7 +77,7 @@ export default function ProductsPage({ profile, userId, userEmail }: ProductsPag
   };
 
   const handleToggleActive = async (id: string, active: boolean) => {
-    await supabase.from('products').update({ is_active: active }).eq('id', id);
+    await ((supabase.from('products') as any).update({ is_active: active }).eq('id', id));
     setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, is_active: active } : p)));
   };
 
@@ -64,6 +87,14 @@ export default function ProductsPage({ profile, userId, userEmail }: ProductsPag
   };
 
   const handleOpenAdd = () => {
+    try {
+      assertProductCreationAllowed(subscriptionSummary);
+      setError('');
+    } catch (err) {
+      setError(err instanceof SubscriptionGuardError ? err.message : 'Product creation is not available.');
+      return;
+    }
+
     setEditingProduct(null);
     setShowModal(true);
   };
@@ -84,6 +115,12 @@ export default function ProductsPage({ profile, userId, userEmail }: ProductsPag
       <Header title="Products" subtitle={`${products.length} products · ${profitMargin}% margin applied`} userEmail={userEmail} />
 
       <div className="flex-1 p-6">
+        {error && (
+          <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3 flex-1">
             <div className="relative flex-1 max-w-xs">
