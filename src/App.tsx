@@ -19,14 +19,13 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [contextLoading, setContextLoading] = useState(false);
 
+  // دالة تحديث بيانات المشترك وحالة الدفع
   const refreshTenantContext = useCallback(async () => {
     if (!user) {
       setTenantContext(null);
       return;
     }
-
     setContextLoading(true);
-
     try {
       await syncSubscriptionStatuses();
       const context = await loadTenantContext();
@@ -38,14 +37,8 @@ export default function App() {
 
   const handleSummaryChange = useCallback((summary: SubscriptionSummary | null) => {
     setTenantContext((previous) => {
-      if (!previous) {
-        return previous;
-      }
-
-      return {
-        ...previous,
-        subscription_summary: summary,
-      };
+      if (!previous) return previous;
+      return { ...previous, subscription_summary: summary };
     });
   }, []);
 
@@ -54,11 +47,9 @@ export default function App() {
       setUser(session?.user ?? null);
       setAuthChecked(true);
     });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -71,7 +62,7 @@ export default function App() {
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-          <p className="text-slate-600 text-sm">Loading Trust...</p>
+          <p className="text-slate-600 text-sm">Loading Trust System...</p>
         </div>
       </div>
     );
@@ -86,21 +77,23 @@ export default function App() {
   const subscriptionSummary = tenantContext?.subscription_summary ?? null;
   const isPlatformAdmin = tenantContext?.is_platform_admin ?? false;
 
-  if (currentPage === 'storefront') {
-    return (
-      <div className="relative">
-        <button
-          onClick={() => setCurrentPage('dashboard')}
-          className="fixed top-4 right-4 z-50 bg-gray-900 text-white text-xs font-semibold px-3 py-2 rounded-xl border border-white/10 hover:bg-gray-800 transition-all shadow-lg"
-        >
-          Back to Dashboard
-        </button>
-        {tenantId ? <StorefrontPage subscriberId={tenantId} /> : null}
-      </div>
-    );
-  }
+  // فحص حالة الاشتراك: هل هو "active"؟
+  const isSubscribed = subscriptionSummary?.status === 'active';
 
+  // منع الدخول لصفحات معينة لو مش مشترك
   const renderPage = () => {
+    // لو اليوزر بيحاول يدخل على المنتجات أو الإعدادات وهو مش دافع، هوديه لصفحة الـ Billing
+    if (!isSubscribed && (currentPage === 'products' || currentPage === 'settings')) {
+      return (
+        <BillingPage
+          tenantId={tenantId}
+          userEmail={user.email ?? ''}
+          summary={subscriptionSummary}
+          onSummaryChange={handleSummaryChange}
+        />
+      );
+    }
+
     switch (currentPage) {
       case 'dashboard':
         return (
@@ -120,14 +113,7 @@ export default function App() {
             tenantId={tenantId}
             userEmail={user.email ?? ''}
             onProfileUpdate={(nextProfile) =>
-              setTenantContext((previous) =>
-                previous
-                  ? {
-                      ...previous,
-                      profile: nextProfile,
-                    }
-                  : previous
-              )
+              setTenantContext((prev) => prev ? { ...prev, profile: nextProfile } : prev)
             }
             subscriptionSummary={subscriptionSummary}
           />
@@ -152,6 +138,8 @@ export default function App() {
         );
       case 'admin':
         return <AdminSubscriptionsPage userEmail={user.email ?? ''} enabled={isPlatformAdmin} />;
+      case 'storefront':
+        return tenantId ? <StorefrontPage subscriberId={tenantId} /> : null;
       default:
         return null;
     }
@@ -162,8 +150,9 @@ export default function App() {
       <Sidebar
         currentPage={currentPage}
         onNavigate={setCurrentPage}
-        storeName={profile?.store_name ?? 'My Store'}
+        storeName={profile?.store_name ?? 'Trust Store'}
         isPlatformAdmin={isPlatformAdmin}
+        isSubscribed={isSubscribed} // تمرير حالة الاشتراك للـ Sidebar لو حبيت تعمل علامة قفل
       />
       <main className="flex-1 flex flex-col min-w-0 overflow-auto">
         {renderPage()}
